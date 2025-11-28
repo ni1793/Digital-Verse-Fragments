@@ -22,7 +22,7 @@
             --modal-color: var(--matrix-green);
             --modal-color-rgb: 0, 255, 0; 
             
-            /* 基礎網格尺寸單位 (縮小) */
+            /* 基礎網格尺寸單位 */
             --grid-unit: 65px; 
             --gap: 10px; 
             
@@ -135,7 +135,7 @@
             
             flex-grow: 0;
             flex-shrink: 0;
-/* V29.0 變更：轉換時間從 0.8s 減少到 0.4s */
+            /* V29.0 加速：轉換時間 0.4s */
             transition: 
                 transform 0.4s ease-out, 
                 opacity 0.4s ease-out, 
@@ -154,13 +154,13 @@
             box-shadow: 0 0 8px var(--matrix-green-glow); 
         }
 
-        /* V28.0 新增：動畫起始狀態 (隱藏、縮小、略微偏移) */
+        /* 動畫起始狀態 */
         .fragment.hidden {
             opacity: 0 !important;
             transform: translate(-50%, -50%) rotateZ(var(--rot-val)) scale(0.5) translateZ(-200px) !important; 
         }
 
-        /* 尺寸設置 (部分省略) */
+        /* 尺寸設置 */
         .fragment.size-1x1 { width: var(--grid-unit); height: var(--grid-unit); }
         .fragment.size-2x1 { width: calc(2 * var(--grid-unit) + var(--gap)); height: var(--grid-unit); }
         .fragment.size-1x2 { width: var(--grid-unit); height: calc(2 * var(--grid-unit) + var(--gap)); }
@@ -254,6 +254,58 @@
             border-top: 1px dashed rgba(0, 255, 0, 0.4);
             font-size: 0.75rem;
         }
+        
+        /* ============== 響應式佈局 (V30.0 手機優化) ============== */
+        @media (max-width: 768px) {
+            :root {
+                /* 縮小核心尺寸單位 */
+                --grid-unit: 45px; /* 從 65px 縮小 */
+                --gap: 6px; 
+                
+                /* 縮小圓形佈局半徑 */
+                --radius-inner: 120px; /* 從 180px 縮小 */
+                --radius-outer: 250px; /* 從 350px 縮小 */
+            }
+
+            /* 縮小碎片內的文字 */
+            .fragment span {
+                font-size: 0.55rem; /* 從 0.6rem 縮小 */
+                padding: 0 2px;
+            }
+            
+            /* 調整重載按鈕大小 */
+            #refreshButton {
+                padding: 8px 16px;
+                font-size: 0.8rem;
+            }
+            
+            /* 手機版：碎片觸摸時的放大效果（利用 :hover 和 :active） */
+            .fragment:hover,
+            .fragment:active {
+                /* 增大放大比例以提供更好的觸控回饋 */
+                transform: translate(-50%, -50%) rotateZ(0deg) scale(1.15) !important; 
+                box-shadow: 0 0 15px var(--matrix-green); /* 縮小光暈 */
+                z-index: 20; 
+            }
+
+            /* 縮小 Modal 視窗並強制居中 */
+            #poemModalContent {
+                width: 95vw;
+                max-height: 95vh;
+                font-size: 0.75rem;
+                padding: 15px;
+                transform: translateZ(0) rotateX(0); /* 移除 3D 效果以簡化手機顯示 */
+                animation: none; /* 移除 Modal 彈入動畫以提高效能 */
+            }
+            
+            /* 強制 Modal 居中，覆蓋 JS 計算的位置 */
+             #poemModal.active #poemModalContent {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+            }
+        }
 
     </style>
 </head>
@@ -292,7 +344,7 @@
     </audio>
 
     <script>
-        // V28.0 核心：音樂與音效路徑設定
+        // V30.0 核心：音樂與音效路徑設定
         const BACKGROUND_MUSIC_PATH = 'background_music.mp3'; 
         const RELOAD_SFX_PATH = 'reboot_sfx.mp3'; 
 
@@ -472,7 +524,7 @@
             const innerCount = Math.floor(MAX_FRAGMENTS / 2);
             const outerCount = MAX_FRAGMENTS - innerCount;
 
-            const fragments = []; // 儲存碎片，用於交錯動畫
+            const fragments = []; 
             
             selectedPoems.forEach((poem, index) => {
                 const frag = document.createElement('div');
@@ -481,7 +533,7 @@
                 frag.innerHTML = `<span>${poem.alias}</span>`;
                 frag.setAttribute('data-overlay', generateRandomCode(80)); 
 
-                // V28.0 步驟 1: 預設為隱藏狀態
+                // 步驟 1: 預設為隱藏狀態
                 frag.classList.add('hidden'); 
                 
                 let position;
@@ -506,14 +558,14 @@
                 
                 frag.addEventListener('click', (event) => openModal(poem, event.currentTarget));
                 collageContainer.appendChild(frag);
-                fragments.push(frag); // 加入列表，準備觸發動畫
+                fragments.push(frag); 
             });
 
-  // V29.0 步驟 2: 交錯移除 hidden 類別，觸發過渡動畫
+            // 步驟 2: 交錯移除 hidden 類別，觸發過渡動畫
             fragments.forEach((frag, index) => {
                 setTimeout(() => {
                     frag.classList.remove('hidden'); 
-                /* V29.0 變更：交錯延遲時間從 40ms 減少到 20ms */
+                /* 交錯延遲時間 20ms */
                 }, index * 20); 
             });
         }
@@ -584,30 +636,39 @@
             modal.classList.add('active'); 
             body.classList.add('modal-active');
             
-            const modalWidth = 400; 
-            const modalHeight = modalContent.offsetHeight;
+            // 檢查是否為手機視窗 (根據 CSS media query 判斷，寬度小於 768px)
+            const isMobile = window.innerWidth <= 768; 
+            
+            if (!isMobile) {
+                // 桌機版：計算 Modal 視窗位置，避免遮擋點擊的碎片
+                const modalWidth = 400; 
+                const modalHeight = modalContent.offsetHeight;
 
-            const rect = targetFragment.getBoundingClientRect();
-            
-            let modalLeft = rect.left + rect.width + 15; 
-            let modalTop = rect.top + (rect.height / 2) - (modalHeight / 2); 
-            
-            if (modalLeft + modalWidth > window.innerWidth - 15) {
-                modalLeft = rect.left - modalWidth - 15;
-                if (modalLeft < 15) { 
-                    modalLeft = (window.innerWidth - modalWidth) / 2;
+                const rect = targetFragment.getBoundingClientRect();
+                
+                let modalLeft = rect.left + rect.width + 15; 
+                let modalTop = rect.top + (rect.height / 2) - (modalHeight / 2); 
+                
+                if (modalLeft + modalWidth > window.innerWidth - 15) {
+                    modalLeft = rect.left - modalWidth - 15;
+                    if (modalLeft < 15) { 
+                        modalLeft = (window.innerWidth - modalWidth) / 2;
+                    }
                 }
-            }
-            
-            if (modalTop + modalHeight > window.innerHeight - 15) {
-                modalTop = window.innerHeight - modalHeight - 15;
-            }
-            if (modalTop < 15) {
-                modalTop = 15;
-            }
+                
+                if (modalTop + modalHeight > window.innerHeight - 15) {
+                    modalTop = window.innerHeight - modalHeight - 15;
+                }
+                if (modalTop < 15) {
+                    modalTop = 15;
+                }
 
-            modalContent.style.left = `${modalLeft}px`;
-            modalContent.style.top = `${modalTop}px`;
+                modalContent.style.left = `${modalLeft}px`;
+                modalContent.style.top = `${modalTop}px`;
+            } else {
+                 // 手機版：位置由 CSS (transform: translate(-50%, -50%)) 處理，確保居中
+                 // 這裡不需要額外的 JS 定位
+            }
         }
         
         function closeModal() { 
