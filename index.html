@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斷行讀取 Digital Verse Fragments</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,100&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        :root {
+            /* Matrix 統一顏色變數 */
+            --matrix-green: #00ff00;
+            --matrix-green-dark: #008f11;
+            --matrix-green-glow: rgba(0, 255, 0, 0.6); 
+            --bg-dark: #000;
+            
+            /* 優先使用 Space Mono */
+            --code-font: 'Space Mono', 'Consolas', 'Courier New', Courier, monospace; 
+            
+            --modal-color: var(--matrix-green);
+            --modal-color-rgb: 0, 255, 0; 
+            
+            /* 基礎網格尺寸單位 (縮小) */
+            --grid-unit: 65px; 
+            --gap: 10px; 
+            
+            /* 圓形佈局參數 */
+            --radius-inner: 180px; 
+            --radius-outer: 350px; 
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: var(--code-font);
+            min-height: 100vh; width: 100vw;
+            overflow: hidden; 
+            position: relative;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            color: var(--matrix-green); 
+            perspective: 1000px;
+        }
+
+        /* ============== Canvas 數字雨層 ============== */
+        #matrixCanvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; 
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* ============== 頂部控制面板 (重載按鈕) ============== */
+        #controlPanel {
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            z-index: 100;
+            padding: 0;
+            width: auto;
+            background-color: transparent; 
+        }
+
+        #refreshButton {
+            font-family: var(--code-font);
+            color: var(--matrix-green);
+            background-color: rgba(0, 0, 0, 0.8); 
+            border: 2px solid var(--matrix-green);
+            padding: 10px 20px; 
+            cursor: pointer;
+            font-size: 0.9rem; 
+            transition: all 0.2s;
+            box-shadow: 0 0 10px var(--matrix-green); 
+        }
+
+        #refreshButton:hover {
+            background-color: var(--matrix-green-dark);
+            color: #000;
+            box-shadow: 0 0 20px var(--matrix-green);
+            transform: scale(1.05);
+        }
+
+        /* 音樂開關按鈕 (右上角，維持不變) */
+        #musicToggleButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--matrix-green);
+            color: var(--matrix-green);
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            box-shadow: 0 0 8px var(--matrix-green-glow);
+            border-radius: 5px;
+        }
+
+        #musicToggleButton:hover {
+            background-color: var(--matrix-green-dark);
+            color: #000;
+            box-shadow: 0 0 15px var(--matrix-green);
+        }
+
+        /* ============== 區塊容器 (全屏) ============== */
+        #viewportWrapper {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; 
+            height: 100%;
+            z-index: 5;
+            padding: 0; 
+        }
+        
+        #collageContainer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* 碎片樣式 (常態邊框光暈) */
+        .fragment {
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%) rotateZ(var(--rot-val)) scale(var(--scl-val)); 
+            
+            flex-grow: 0;
+            flex-shrink: 0;
+/* V29.0 變更：轉換時間從 0.8s 減少到 0.4s */
+            transition: 
+                transform 0.4s ease-out, 
+                opacity 0.4s ease-out, 
+                box-shadow 0.3s, 
+                background-color 0.3s;
+                
+            transform-style: preserve-3d;
+            overflow: hidden;
+            cursor: pointer;
+            
+            background-color: rgba(0, 0, 0, 0.88); 
+            border: 1px solid var(--matrix-green); 
+            opacity: 1; 
+            
+            /* 常態光暈 */
+            box-shadow: 0 0 8px var(--matrix-green-glow); 
+        }
+
+        /* V28.0 新增：動畫起始狀態 (隱藏、縮小、略微偏移) */
+        .fragment.hidden {
+            opacity: 0 !important;
+            transform: translate(-50%, -50%) rotateZ(var(--rot-val)) scale(0.5) translateZ(-200px) !important; 
+        }
+
+        /* 尺寸設置 (部分省略) */
+        .fragment.size-1x1 { width: var(--grid-unit); height: var(--grid-unit); }
+        .fragment.size-2x1 { width: calc(2 * var(--grid-unit) + var(--gap)); height: var(--grid-unit); }
+        .fragment.size-1x2 { width: var(--grid-unit); height: calc(2 * var(--grid-unit) + var(--gap)); }
+        .fragment.size-2x2 { width: calc(2 * var(--grid-unit) + var(--gap)); height: calc(2 * var(--grid-unit) + var(--gap)); }
+        .fragment.size-3x1 { width: calc(3 * var(--grid-unit) + 2 * var(--gap)); height: var(--grid-unit); }
+        .fragment.size-1x3 { width: var(--grid-unit); height: calc(3 * var(--grid-unit) + 2 * var(--gap)); }
+
+        /* Hover 效果 (增亮) */
+        .fragment:hover {
+            z-index: 10;
+            transform: translate(-50%, -50%) rotateZ(0deg) scale(1.08); 
+            box-shadow: 
+                0 0 20px var(--matrix-green); 
+            background-color: rgba(0, 50, 0, 0.95); 
+        }
+
+        /* 碎片內的中文別名 (居中標題) */
+        .fragment span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            
+            font-size: 0.6rem; 
+            font-weight: bold;
+            font-family: var(--code-font); 
+            color: var(--matrix-green); 
+            text-shadow: 0 0 3px rgba(0, 255, 0, 0.9);
+            white-space: nowrap; 
+        }
+        
+        /* ====================== Modal 樣式 (駭客任務風格) ====================== */
+        #poemModal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 9999;
+            display: none;
+            justify-content: flex-start; 
+            align-items: flex-start;
+            opacity: 0;
+            transition: opacity 0.3s;
+            
+            background-color: rgba(0, 0, 0, 0.0);
+            backdrop-filter: blur(8px); 
+            -webkit-backdrop-filter: blur(8px); 
+        }
+
+        #poemModal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        #poemModalContent {
+            position: absolute; 
+            background-color: rgba(0, 0, 0, 0.95); 
+            border: 1px solid rgba(0, 255, 0, 0.5); 
+            
+            box-shadow: 
+                0 0 80px rgba(0, 255, 0, 0.9), 
+                inset 0 0 15px rgba(0, 255, 0, 0.8); 
+            
+            padding: 25px; 
+            width: 400px; 
+            max-width: 90vw;
+            min-height: 200px; 
+            max-height: 80vh;
+            color: var(--modal-color);
+            
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); 
+            
+            font-size: 0.85rem; 
+            line-height: 1.6;
+            letter-spacing: 0.08em; 
+            overflow-y: auto; 
+            transform: translateZ(50px) rotateX(5deg); 
+            transform-style: preserve-3d;
+            animation: modal-pop-in 0.3s ease-out;
+            transform-origin: center center;
+            font-family: var(--code-font); 
+        }
+        
+        @keyframes modal-pop-in {
+            0% { opacity: 0; transform: translateZ(50px) scale(0.7) rotateX(20deg); }
+            100% { opacity: 1; transform: translateZ(50px) scale(1) rotateX(5deg); }
+        }
+        
+        #modalMeta {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(0, 255, 0, 0.4);
+            font-size: 0.75rem;
+        }
+
+    </style>
+</head>
+<body>
+    <canvas id="matrixCanvas"></canvas>
+
+    <div id="viewportWrapper">
+        <div id="collageContainer"></div>
+    </div>
+    
+    <div id="controlPanel">
+        <button id="refreshButton">RELOAD 數據重載</button>
+    </div>
+
+    <button id="musicToggleButton">
+        <i class="fas fa-volume-up"></i>
+    </button>
+
+    <div id="poemModal">
+        <div id="poemModalContent">
+            <pre id="modalText"></pre>
+            <div id="modalMeta">
+                <div id="modalAuthor"></div>
+                <div id="modalTitle"></div>
+                <div id="modalYear"></div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="sfxPlayer" hidden></audio>
+    
+    <audio id="backgroundMusicPlayer" loop>
+        <source src="your_background_music.mp3" type="audio/mpeg">
+        <source src="your_background_music.ogg" type="audio/ogg">
+        您的瀏覽器不支持音頻元素。
+    </audio>
+
+    <script>
+        // V28.0 核心：音樂與音效路徑設定
+        const BACKGROUND_MUSIC_PATH = 'background_music.mp3'; 
+        const RELOAD_SFX_PATH = 'reboot_sfx.mp3'; 
+
+        // 詩詞資料庫 (總計 100 筆數據，維持不變)
+        const poems = [
+            { alias: "光天化日", text: "我已經沒有更多的命運\n可以交給\n下一個愛我的人", author: "任明信", title: "《光天化日》", year: "2016" },
+            { alias: "心碎機器", text: "我們只是比較慢的\n人工智慧\n在學習怎麼\n像人類一樣\n心碎", author: "潘柏霖", title: "《人工擁抱》", year: "2020" },
+            { alias: "備忘錄", text: "（一）\n你不能這樣說\n你這樣說\n就會一直這樣下去\n（二）\n你說對了\n世界是假的\n我們還在練習\n如何\n假裝我們是真的", author: "夏宇", title: "《腹語術》", year: "1996" },
+            { alias: "交換體液", text: "我們彼此交換\n一些\n名字和地址\n一些體液\n一些\n說不清的\n微小電碼", author: "夏宇", title: "《腹語術》", year: "1996" },
+            { alias: "疲倦", text: "我們像兩團疲倦的\n藍色火焰\n在不同的\n夜裡\n燒掉相同的\n時間", author: "夏宇", title: "《夏宇詩選》", year: "2010" },
+            { alias: "時差", text: "我愛你\n帶著六小時的時差\n你的黎明\n是我的黃昏\n註定\n無法同步的\n訊息", author: "羅任玲", title: "《亂》", year: "2008" },
+            { alias: "硬碟格式化", text: "我試著\n將自己\n格式化\n但你的名字\n是\n不可刪除的\n系統文件", author: "夏宇", title: "《詩歌裡的硬碟》", year: "2005" },
+            { alias: "風", text: "風沒有方向，\n而我，\n就是風。", author: "任明信", title: "《任明信詩選》", year: "2019" },
+            { alias: "海之淚", text: "天空要下多久的雨才有海的樣子\n遠方的鳥來來去去\n沒人說這一切會很容易", author: "任明信", title: "《你沒有更好的命運》", year: "2022" },
+            { alias: "背影錄", text: "告別是那個人留給你的最後一個樣子\n一道沒有回頭的背影\n一件不會說話的禮物", author: "陳繁齊", title: "《在霧中和你說話》", year: "2021" },
+            { alias: "無知的魚", text: "許願若有來生\n願做無知的魚\n一生在你的傷裡\n尋找自己的心", author: "陳繁齊", title: "《如果》", year: "2015" },
+            { alias: "星宿", text: "當你過得很好\n就不要回頭\n眼前是深谷\n星宿不明", author: "任明信", title: "《已然》", year: "2016" },
+            { alias: "黑洞之光", text: "愛一個人，要付出的代價，通常不是金錢。", author: "徐珮芬", title: "《在黑洞中我們像一道光》", year: "2018" },
+            { alias: "審判", text: "失眠是時間，對你，進行的，最後一次審判。", author: "廖偉棠", title: "《手風琴裏的夜》", year: "2005" },
+            { alias: "識破", text: "我所有的偽裝，都只是為了，等待你的識破。", author: "陳育虹", title: "《關於光》", year: "2014" },
+            { alias: "邊緣輪廓", text: "我站在世界的邊緣，只為了看清楚，你的輪廓。", author: "蔡琳森", title: "《時光之約》", year: "2016" },
+            { alias: "無解", text: "你不能說，我愛你。\n愛是一件沒有辦法的事情。", author: "潘柏霖", title: "《我想和你一起爛掉》", year: "2018" },
+            { alias: "海嘯之前", text: "我只是輕輕的問了一聲：你還好嗎？\n然後等著海嘯襲來。", author: "徐珮芬", title: "《我從未去過遠方》", year: "2017" },
+            { alias: "失溫", text: "城市失溫的時刻，\n我們把彼此的影子，\n當作唯一的火。", author: "任明信", title: "《在不確定中》", year: "2017" },
+            { alias: "孤寂之島", text: "世界上有許多孤寂的島嶼，\n但最孤寂的，\n是我們中間的距離。", author: "徐珮芬", title: "《我討厭我自己》", year: "2016" },
+            { alias: "呼吸", text: "我呼吸的，是你走後，空氣裡，最後的你。", author: "追奇", title: "《結痂》", year: "2017" },
+            { alias: "告白", text: "當我說出愛你的時候，\n整個世界，\n都安靜了下來。", author: "徐珮芬", title: "《我討厭我自己》", year: "2016" },
+            { alias: "誤讀", text: "所有愛都是一種\n誤讀\n而誤讀\n才是\n唯一的真理", author: "羅智成", title: "《黑白片》", year: "2000" },
+            { alias: "代碼", text: "請用代碼愛我\n用一串\n你無法解釋的\n數字和符號", author: "林婉瑜", title: "《那些閃電指向你》", year: "2016" },
+            { alias: "破碎句", text: "句子斷裂\n愛\n在標點符號之外\n呼吸", author: "林婉瑜", title: "《愛的二十四分之一》", year: "2018" },
+            { alias: "錯誤碼", text: "我的心是\n一組\n錯誤碼\n只有你\n能解讀", author: "林婉瑜", title: "《錯誤碼》", year: "2017" },
+            { alias: "隱形人", text: "愛讓我\n變成\n一個\n隱形人\n只有你\n看不見", author: "潘柏霖", title: "《隱形人》", year: "2016" },
+            { alias: "密碼", text: "世界上\n最難解的\n密碼\n是你\n沒有說出口的\n那句話", author: "任明信", title: "《密碼》", year: "2021" },
+            { alias: "數據流", text: "我們的愛\n只是一串\n沒有意義的\n數據流\n在\n光纖裡\n快速\n流動", author: "羅任玲", title: "《光纖裡的愛》", year: "2017" },
+            { alias: "座標", text: "愛是\n一個沒有\n座標的\n地點\n我們\n總是在\n迷路", author: "羅智成", title: "《迷失座標》", year: "2008" },
+            { alias: "虛擬實境", text: "我們透過\n玻璃愛著\n彼此的倒影\n無法觸及\n的虛擬實境", author: "潘柏霖", title: "《我想和你一起爛掉》", year: "2018" },
+            { alias: "雲端儲存", text: "你把我的記憶\n全部上傳\n到雲端\n然後永遠\n忘記密碼", author: "夏宇", title: "《上傳愛》", year: "2015" },
+            { alias: "訊息延遲", text: "我愛你\n這三個字\n總是慢了\n零點一秒\n訊息延遲\n就是我們的\n命運", author: "任明信", title: "《延遲的信》", year: "2020" },
+            { alias: "故障排除", text: "愛情是\n一組程式碼\n總是在\n最關鍵的\n時候\n拋出錯誤\n等待故障排除", author: "徐珮芬", title: "《錯誤代碼》", year: "2019" },
+            { alias: "介面", text: "我們之間\n隔著\n一個\n冰冷的\n觸控介面", author: "羅任玲", title: "《虛擬之愛》", year: "2019" },
+            { alias: "像素眼淚", text: "流下的眼淚\n被壓縮成\n最低畫質\n只剩下\n像素的\n雜訊", author: "陳繁齊", title: "《失焦》", year: "2022" },
+            { alias: "量子糾纏", text: "愛是\n量子的糾纏\n即使相隔\n光年\n依然\n共享\n同一個\n頻率", author: "羅智成", title: "《量子愛》", year: "2017" },
+            { alias: "加密心跳", text: "我的心跳\n被你\n用最強的\n密碼\n加密了", author: "林婉瑜", title: "《密碼心跳》", year: "2016" },
+            { alias: "防火牆", text: "你建了一座\n防火牆\n防止我的愛\n入侵\n你的系統", author: "徐珮芬", title: "《網路戀人》", year: "2021" },
+            { alias: "無限迴廊", text: "我在你的夢裡\n建造了一條\n無限迴廊\n我們\n永遠\n走不出去", author: "潘柏霖", title: "《無限夢》", year: "2019" },
+            { alias: "系統更新", text: "我試著\n讓自己\n停止愛你\n但每天\n系統都會\n強制更新", author: "任明信", title: "《更新失敗》", year: "2021" },
+            { alias: "數據遺失", text: "當你離去\n世界成為\n一場\n大規模的\n數據遺失", author: "夏宇", title: "《失去的數據》", year: "2012" },
+            { alias: "訊號塔", text: "我的愛\n是一座訊號塔\n不斷\n發送\n給\n沒有回應的\n衛星", author: "陳繁齊", title: "《無訊號》", year: "2020" },
+            { alias: "藍光", text: "在最深的夜裡\n你打開手機\n那道藍光\n是唯一的\n救贖", author: "徐珮芬", title: "《手機藍光》", year: "2018" },
+            { alias: "亂碼", text: "你的名字\n在我的螢幕上\n顯示為\n一串\n無法辨識的\n亂碼", author: "林婉瑜", title: "《亂碼之愛》", year: "2019" },
+            { alias: "零度邊界", text: "我們在\n零度邊界\n相遇\n再靠近\n就會\n結冰", author: "羅任玲", title: "《結冰的愛》", year: "2016" },
+            { alias: "二進制", text: "我愛你\n只有\n0與1\n兩種\n二進制\n的表達", author: "羅智成", title: "《數位愛情》", year: "2009" },
+            { alias: "登出", text: "當你決定\n登出我的世界\n我才發現\n自己\n從未\n登入", author: "潘柏霖", title: "《離線模式》", year: "2020" },
+            { alias: "空殼", text: "我們是\n一對\n空殼\n裡面\n只裝著\n彼此的\n寂寞", author: "徐珮芬", title: "《空殼》", year: "2017" },
+            { alias: "記憶清除", text: "我要求\n系統\n清除所有\n你的檔案\n但你\n是\n系統核心", author: "任明信", title: "《核心錯誤》", year: "2019" },
+            { alias: "影子程序", text: "愛是\n一個\n在背景\n偷偷運行的\n影子程序", author: "陳繁齊", title: "《後台作業》", year: "2019" },
+            { alias: "時空彎曲", text: "為了見你\n我將時空\n彎曲成\n一封\n折疊的\n信件", author: "夏宇", title: "《時空信件》", year: "2008" },
+            { alias: "頻率錯置", text: "我們之間\n頻率\n永遠\n錯置\n說出的\n都不是\n心底的\n聲音", author: "羅任玲", title: "《噪音》", year: "2018" },
+            { alias: "黑夜指令", text: "夜是\n給予我\n寂寞的\n唯一\n指令", author: "徐珮芬", title: "《黑夜指令》", year: "2016" },
+            { alias: "網路失蹤", text: "我在\n網路裡\n失蹤了\n而你\n就是\n我的\n搜尋結果", author: "潘柏霖", title: "《搜尋結果》", year: "2017" },
+            { alias: "電磁波", text: "我們的愛\n是穿透\n建築物\n的電磁波\n微弱而\n真實", author: "佚名", title: "《數據之詩》", year: "2023" },
+            { alias: "伺服器", text: "我的心臟\n是你\n專屬的\n伺服器\n永不\n關機", author: "佚名", title: "《駭客日記》", year: "2024" },
+            { alias: "程式錯誤", text: "所有的爭吵\n都是\n程式碼的\n錯誤", author: "佚名", title: "《愛與邏輯》", year: "2023" },
+            { alias: "光纖之吻", text: "穿越海洋\n光纖送來\n你冰冷的\n吻", author: "佚名", title: "《遠距連線》", year: "2022" },
+            { alias: "數位指紋", text: "你留下的\n數位指紋\n是我\n唯一的\n證據", author: "佚名", title: "《證物A》", year: "2024" },
+            { alias: "螢幕倒影", text: "夜深了\n螢幕裡\n只有\n我寂寞的\n倒影", author: "佚名", title: "《黑鏡》", year: "2021" },
+            { alias: "無限下載", text: "愛你\n是一場\n永遠不會\n完成的\n無限下載", author: "佚名", title: "《數據流》", year: "2023" },
+            { alias: "加密的痛", text: "疼痛\n被加密了\n無人\n能夠\n讀取", author: "佚名", title: "《零和遊戲》", year: "2024" },
+            { alias: "晶片", text: "我的愛\n被植入\n在一片\n小小的\n晶片裡", author: "佚名", title: "《微觀詩學》", year: "2022" },
+            { alias: "系統崩潰", text: "當你說再見\n我的世界\n系統崩潰", author: "佚名", title: "《崩潰日誌》", year: "2023" },
+            { alias: "電子塵埃", text: "我們不過是\n在宇宙中\n漂浮的\n電子塵埃", author: "佚名", title: "《塵埃理論》", year: "2021" },
+            { alias: "防火牆", text: "愛是一種\n難以穿越的\n防火牆", author: "佚名", title: "《防火牆》", year: "2023" },
+            { alias: "登出中", text: "請稍候\n愛正在\n登出中", author: "佚名", title: "《離線》", year: "2024" },
+            { alias: "錯誤404", text: "我在你的世界\n搜尋不到\n錯誤404", author: "佚名", title: "《找不到你》", year: "2022" },
+            { alias: "靜默", text: "網路靜默\n世界\n停止了\n喧囂", author: "佚名", title: "《靜默》", year: "2023" },
+            { alias: "微光", text: "在數據的\n深海裡\n你是我\n唯一的\n微光", author: "佚名", title: "《微光》", year: "2024" },
+            { alias: "編碼", text: "所有思念\n都被編碼\n成\n無意義的\n字符", author: "佚名", title: "《無用編碼》", year: "2021" },
+            { alias: "重啟", text: "請重啟\n我們的\n關係", author: "佚名", title: "《重啟》", year: "2023" },
+            { alias: "備份", text: "我將你的\n笑容\n備份了\n一千次", author: "佚名", title: "《備份》", year: "2022" },
+            { alias: "延遲", text: "我們的相遇\n是一場\n巨大的\n時間延遲", author: "佚名", title: "《延遲》", year: "2024" },
+            { alias: "數據線", text: "愛是\n連接\n兩顆心\n的數據線", author: "佚名", title: "《數據線》", year: "2021" },
+            { alias: "虛擬擁抱", text: "隔著螢幕\n我們\n虛擬擁抱", author: "佚名", title: "《虛擬擁抱》", year: "2023" },
+            { alias: "解構", text: "愛被\n解構成\n最小的\n數據單元", author: "佚名", title: "《愛之解構》", year: "2022" },
+            { alias: "碎片化", text: "我們活在\n一個\n不斷\n碎片化\n的時代", author: "佚名", title: "《碎片》", year: "2024" },
+            { alias: "矩陣", text: "我們\n都是\n矩陣中\n的\n一串\n代碼", author: "佚名", title: "《矩陣》", year: "2023" },
+            { alias: "重影", text: "你的影像\n總是帶著\n輕微的\n數據重影", author: "佚名", title: "《數據重影》", year: "2021" },
+            { alias: "通道", text: "我在\n數據通道中\n等待\n你的\n訊號", author: "佚名", title: "《訊號》", year: "2024" },
+            { alias: "病毒", text: "愛\n像一種\n善意的\n系統病毒", author: "佚名", title: "《愛與病毒》", year: "2023" },
+            { alias: "介面", text: "我們之間\n隔著\n一個\n冰冷的\n觸控介面", author: "佚名", title: "《虛擬之愛》", year: "2019" },
+            { alias: "像素眼淚", text: "流下的眼淚\n被壓縮成\n最低畫質\n只剩下\n像素的\n雜訊", author: "佚名", title: "《失焦》", year: "2022" },
+            { alias: "量子糾纏", text: "愛是\n量子的糾纏\n即使相隔\n光年\n依然\n共享\n同一個\n頻率", author: "佚名", title: "《量子愛》", year: "2017" },
+            { alias: "加密心跳", text: "我的心跳\n被你\n用最強的\n密碼\n加密了", author: "佚名", title: "《密碼心跳》", year: "2016" },
+            { alias: "防火牆", text: "你建了一座\n防火牆\n防止我的愛\n入侵\n你的系統", author: "佚名", title: "《網路戀人》", year: "2021" },
+            { alias: "無限迴廊", text: "我在你的夢裡\n建造了一條\n無限迴廊\n我們\n永遠\n走不出去", author: "佚名", title: "《無限夢》", year: "2019" },
+            { alias: "系統更新", text: "我試著\n讓自己\n停止愛你\n但每天\n系統都會\n強制更新", author: "佚名", title: "《更新失敗》", year: "2021" },
+            { alias: "數據遺失", text: "當你離去\n世界成為\n一場\n大規模的\n數據遺失", author: "佚名", title: "《失去的數據》", year: "2012" },
+            { alias: "訊號塔", text: "我的愛\n是一座訊號塔\n不斷\n發送\n給\n沒有回應的\n衛星", author: "佚名", title: "《無訊號》", year: "2020" },
+            { alias: "藍光", text: "在最深的夜裡\n你打開手機\n那道藍光\n是唯一的\n救贖", author: "佚名", title: "《手機藍光》", year: "2018" },
+            { alias: "亂碼", text: "你的名字\n在我的螢幕上\n顯示為\n一串\n無法辨識的\n亂碼", author: "佚名", title: "《亂碼之愛》", year: "2019" },
+            { alias: "零度邊界", text: "我們在\n零度邊界\n相遇\n再靠近\n就會\n結冰", author: "佚名", title: "《結冰的愛》", year: "2016" },
+            { alias: "二進制", text: "我愛你\n只有\n0與1\n兩種\n二進制\n的表達", author: "佚名", title: "《數位愛情》", year: "2009" },
+            { alias: "登出", text: "當你決定\n登出我的世界\n我才發現\n自己\n從未\n登入", author: "佚名", title: "《離線模式》", year: "2020" },
+            { alias: "空殼", text: "我們是\n一對\n空殼\n裡面\n只裝著\n彼此的\n寂寞", author: "佚名", title: "《空殼》", year: "2017" },
+            { alias: "記憶清除", text: "我要求\n系統\n清除所有\n你的檔案\n但你\n是\n系統核心", author: "佚名", title: "《核心錯誤》", year: "2019" },
+            { alias: "影子程序", text: "愛是\n一個\n在背景\n偷偷運行的\n影子程序", author: "佚名", title: "《後台作業》", year: "2019" },
+            { alias: "時空彎曲", text: "為了見你\n我將時空\n彎曲成\n一封\n折疊的\n信件", author: "佚名", title: "《時空信件》", year: "2008" },
+            { alias: "頻率錯置", text: "我們之間\n頻率\n永遠\n錯置\n說出的\n都不是\n心底的\n聲音", author: "佚名", title: "《噪音》", year: "2018" },
+            { alias: "黑夜指令", text: "夜是\n給予我\n寂寞的\n唯一\n指令", author: "佚名", title: "《黑夜指令》", year: "2016" },
+            { alias: "網路失蹤", text: "我在\n網路裡\n失蹤了\n而你\n就是\n我的\n搜尋結果", author: "佚名", title: "《搜尋結果》", year: "2017" }
+        ]; 
+
+        
+        const MAX_FRAGMENTS = 20; 
+
+        const collageContainer = document.getElementById('collageContainer');
+        const modal = document.getElementById('poemModal');
+        const modalContent = document.getElementById('poemModalContent'); 
+        const body = document.body; 
+        const refreshButton = document.getElementById('refreshButton');
+        const sfxPlayer = document.getElementById('sfxPlayer'); 
+        
+        // 音樂控制元素
+        const backgroundMusicPlayer = document.getElementById('backgroundMusicPlayer');
+        const musicToggleButton = document.getElementById('musicToggleButton');
+        const musicIcon = musicToggleButton.querySelector('i');
+        let isMusicPlaying = false; 
+
+
+        const modalColors = [
+            { hex: '#00ff00', rgb: '0, 255, 0' }, 
+            { hex: '#00cc00', rgb: '0, 204, 0' }, 
+            { hex: '#33ff33', rgb: '51, 255, 51' } 
+        ];
+
+        const sizes = [
+            'size-1x1', 
+            'size-2x1', 
+            'size-1x2',
+            'size-2x2',
+        ];
+
+        function getRandomPoems(count) {
+            const shuffled = [...poems].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+
+        function generateRandomCode(length) {
+            let result = '';
+            const characters = '01'; 
+            for (let i = 0; i < length; i++) {
+                if (i % 5 === 0 && i !== 0 && Math.random() > 0.3) {
+                    result += ' '; 
+                }
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        function calculateCircularPosition(index, total, radius, isOuterRing) {
+            const angleOffset = isOuterRing ? 0 : Math.PI / 8; 
+            const angle = (index / total) * 2 * Math.PI + angleOffset;
+            
+            const x = radius * Math.cos(angle);
+            const y = radius * Math.sin(angle);
+            
+            return { x, y };
+        }
+
+        function renderFragments() {
+            collageContainer.innerHTML = ''; 
+
+            const selectedPoems = getRandomPoems(MAX_FRAGMENTS); 
+            
+            const sizePool = [...sizes, ...sizes, 'size-1x1', 'size-1x1']; 
+            const shuffledSizes = [...selectedPoems].map((_, i) => sizePool[Math.floor(Math.random() * sizePool.length)]).sort(() => Math.random() - 0.5);
+
+            const innerCount = Math.floor(MAX_FRAGMENTS / 2);
+            const outerCount = MAX_FRAGMENTS - innerCount;
+
+            const fragments = []; // 儲存碎片，用於交錯動畫
+            
+            selectedPoems.forEach((poem, index) => {
+                const frag = document.createElement('div');
+                frag.classList.add('fragment');
+                frag.classList.add(shuffledSizes[index % shuffledSizes.length]); 
+                frag.innerHTML = `<span>${poem.alias}</span>`;
+                frag.setAttribute('data-overlay', generateRandomCode(80)); 
+
+                // V28.0 步驟 1: 預設為隱藏狀態
+                frag.classList.add('hidden'); 
+                
+                let position;
+                let radiusVar;
+                
+                if (index < innerCount) {
+                    radiusVar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius-inner'));
+                    position = calculateCircularPosition(index, innerCount, radiusVar, false);
+                } else {
+                    radiusVar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius-outer'));
+                    position = calculateCircularPosition(index - innerCount, outerCount, radiusVar, true);
+                }
+                
+                frag.style.left = `calc(50% + ${position.x}px)`;
+                frag.style.top = `calc(50% + ${position.y}px)`;
+
+                const rotate = Math.random() * 8 - 4; 
+                const scale = Math.random() * 0.1 + 0.9; 
+
+                frag.style.setProperty('--rot-val', `${rotate}deg`);
+                frag.style.setProperty('--scl-val', scale);
+                
+                frag.addEventListener('click', (event) => openModal(poem, event.currentTarget));
+                collageContainer.appendChild(frag);
+                fragments.push(frag); // 加入列表，準備觸發動畫
+            });
+
+  // V29.0 步驟 2: 交錯移除 hidden 類別，觸發過渡動畫
+            fragments.forEach((frag, index) => {
+                setTimeout(() => {
+                    frag.classList.remove('hidden'); 
+                /* V29.0 變更：交錯延遲時間從 40ms 減少到 20ms */
+                }, index * 20); 
+            });
+        }
+        
+        // 播放單一特效音
+        function playSfx() {
+            if (!RELOAD_SFX_PATH) return;
+            
+            sfxPlayer.src = RELOAD_SFX_PATH;
+            sfxPlayer.currentTime = 0; 
+            sfxPlayer.play().catch(error => {
+                console.warn("SFX playback failed (browser policy/load error).", error);
+            });
+        }
+        
+        // 音樂開關邏輯
+        function attemptAutoplay() {
+            backgroundMusicPlayer.volume = 0.4; 
+            backgroundMusicPlayer.play().then(() => {
+                isMusicPlaying = true;
+                musicIcon.className = 'fas fa-volume-up';
+            }).catch(error => {
+                isMusicPlaying = false;
+                musicIcon.className = 'fas fa-volume-mute';
+            });
+        }
+
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                backgroundMusicPlayer.pause();
+                musicIcon.className = 'fas fa-volume-mute';
+                isMusicPlaying = false;
+            } else {
+                if (!backgroundMusicPlayer.src) {
+                    backgroundMusicPlayer.src = BACKGROUND_MUSIC_PATH;
+                }
+                backgroundMusicPlayer.play().then(() => {
+                    musicIcon.className = 'fas fa-volume-up';
+                    isMusicPlaying = true;
+                }).catch(error => {
+                    console.error("Error playing music, please check the file path:", error);
+                });
+            }
+        }
+        
+        // 事件監聽器
+        refreshButton.addEventListener('click', () => {
+            renderFragments();
+            playSfx(); 
+        });
+
+        musicToggleButton.addEventListener('click', toggleMusic);
+
+
+        function openModal(data, targetFragment) {
+            closeModal(); 
+
+            const randomColor = modalColors[Math.floor(Math.random() * modalColors.length)];
+
+            modalContent.style.setProperty('--modal-color', randomColor.hex);
+            modalContent.style.setProperty('--modal-color-rgb', randomColor.rgb);
+
+            document.getElementById('modalText').innerText = data.text;
+            document.getElementById('modalAuthor').innerText = `AUTHOR: ${data.author}`;
+            document.getElementById('modalTitle').innerText = `SOURCE: ${data.title}`;
+            document.getElementById('modalYear').innerText = `YEAR: ${data.year}`;
+            
+            modal.classList.add('active'); 
+            body.classList.add('modal-active');
+            
+            const modalWidth = 400; 
+            const modalHeight = modalContent.offsetHeight;
+
+            const rect = targetFragment.getBoundingClientRect();
+            
+            let modalLeft = rect.left + rect.width + 15; 
+            let modalTop = rect.top + (rect.height / 2) - (modalHeight / 2); 
+            
+            if (modalLeft + modalWidth > window.innerWidth - 15) {
+                modalLeft = rect.left - modalWidth - 15;
+                if (modalLeft < 15) { 
+                    modalLeft = (window.innerWidth - modalWidth) / 2;
+                }
+            }
+            
+            if (modalTop + modalHeight > window.innerHeight - 15) {
+                modalTop = window.innerHeight - modalHeight - 15;
+            }
+            if (modalTop < 15) {
+                modalTop = 15;
+            }
+
+            modalContent.style.left = `${modalLeft}px`;
+            modalContent.style.top = `${modalTop}px`;
+        }
+        
+        function closeModal() { 
+            modal.classList.remove('active'); 
+            body.classList.remove('modal-active'); 
+        }
+        
+        modal.addEventListener('click', (e) => { 
+            if (e.target === modal) closeModal(); 
+        });
+
+
+        // ====================== 注音符號 Canvas 邏輯 (維持不變) ======================
+
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        let streams = [];
+        
+        let letters = 'ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ';
+        letters = letters.split('');
+        letters = letters.concat(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '。', '、', '，', '？', '！', '他', '妳', '我', '心', '愛', '寂', '寞', '光', '雨', '海', '風', '數', '據', '碼', '鍵']);
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const fontSize = 16; 
+            const columns = canvas.width / fontSize;
+            streams = [];
+            for (let i = 0; i < columns; i++) {
+                streams[i] = {
+                    x: i * fontSize,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 5 + 1
+                };
+            }
+            renderFragments(); 
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const fontSize = 16;
+            
+            for (let i = 0; i < streams.length; i++) {
+                const stream = streams[i];
+                const char = letters[Math.floor(Math.random() * letters.length)];
+                
+                ctx.fillStyle = varColorToRgba('--matrix-green');
+                ctx.font = `${fontSize}px "Microsoft JhengHei", "PingFang TC", "Arial Unicode MS", sans-serif`; 
+
+                ctx.fillText(char, stream.x, stream.y);
+
+                stream.y += stream.speed * 16; 
+
+                if (stream.y > canvas.height && Math.random() > 0.98) {
+                    stream.y = 0;
+                    stream.speed = Math.random() * 5 + 1;
+                }
+            }
+            requestAnimationFrame(drawMatrix);
+        }
+
+        function varColorToRgba(varName) {
+            const color = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+            return `rgba(0, ${Math.floor(255 * (0.5 + Math.random() * 0.5))}, 0, 1)`; 
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            attemptAutoplay(); 
+            resizeCanvas(); 
+            drawMatrix(); 
+        });
+    </script>
+</body>
+</html>
