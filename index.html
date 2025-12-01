@@ -12,20 +12,25 @@
 /* ============== 底部製作人資訊欄 (V38.0 新增) ============== */
 #footer-credits {
     position: fixed; 
-    bottom: 0;      
+    
+    /* 修正關鍵：新增 env(safe-area-inset-bottom) */
+    /* 讓 Footer 固定在「安全區域」的底部，避開瀏覽器導航欄 */
+    bottom: 0; /* Fallback for browsers that don't support env() */
+    bottom: env(safe-area-inset-bottom, 0); /* Safari/iOS 修正 */
+    
     left: 0;
     width: 100%;    
     background-color: rgba(0, 0, 0, 0.85); 
     
-    /* 修正 1: 頂部橫線顏色 (使用動態光暈變數) */
     border-top: 1px solid var(--matrix-green-glow);
     
     padding: 10px;
     z-index: 200; 
     text-align: center;
     font-family: var(--code-font);
-    font-size: 0.7rem;
-color: var(--matrix-green);
+    font-size: 0.7rem; 
+    
+    color: var(--matrix-green);
     
     backdrop-filter: blur(3px); 
     display: flex;
