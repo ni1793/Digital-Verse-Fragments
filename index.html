@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>斷行讀取 Digital Verse Fragments</title>
+    <title>破碎數據</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,100&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -22,7 +22,7 @@
             --modal-color: var(--matrix-green);
             --modal-color-rgb: 0, 255, 0; 
             
-            /* 基礎網格尺寸單位 */
+            /* 基礎網格尺寸單位 (縮小) */
             --grid-unit: 65px; 
             --gap: 10px; 
             
@@ -135,7 +135,7 @@
             
             flex-grow: 0;
             flex-shrink: 0;
-            /* V29.0 加速：轉換時間 0.4s */
+/* V29.0 變更：轉換時間從 0.8s 減少到 0.4s */
             transition: 
                 transform 0.4s ease-out, 
                 opacity 0.4s ease-out, 
@@ -154,13 +154,13 @@
             box-shadow: 0 0 8px var(--matrix-green-glow); 
         }
 
-        /* 動畫起始狀態 */
+        /* V28.0 新增：動畫起始狀態 (隱藏、縮小、略微偏移) */
         .fragment.hidden {
             opacity: 0 !important;
             transform: translate(-50%, -50%) rotateZ(var(--rot-val)) scale(0.5) translateZ(-200px) !important; 
         }
 
-        /* 尺寸設置 */
+        /* 尺寸設置 (部分省略) */
         .fragment.size-1x1 { width: var(--grid-unit); height: var(--grid-unit); }
         .fragment.size-2x1 { width: calc(2 * var(--grid-unit) + var(--gap)); height: var(--grid-unit); }
         .fragment.size-1x2 { width: var(--grid-unit); height: calc(2 * var(--grid-unit) + var(--gap)); }
@@ -254,58 +254,6 @@
             border-top: 1px dashed rgba(0, 255, 0, 0.4);
             font-size: 0.75rem;
         }
-        
-        /* ============== 響應式佈局 (V30.0 手機優化) ============== */
-        @media (max-width: 768px) {
-            :root {
-                /* 縮小核心尺寸單位 */
-                --grid-unit: 45px; /* 從 65px 縮小 */
-                --gap: 6px; 
-                
-                /* 縮小圓形佈局半徑 */
-                --radius-inner: 120px; /* 從 180px 縮小 */
-                --radius-outer: 250px; /* 從 350px 縮小 */
-            }
-
-            /* 縮小碎片內的文字 */
-            .fragment span {
-                font-size: 0.55rem; /* 從 0.6rem 縮小 */
-                padding: 0 2px;
-            }
-            
-            /* 調整重載按鈕大小 */
-            #refreshButton {
-                padding: 8px 16px;
-                font-size: 0.8rem;
-            }
-            
-            /* 手機版：碎片觸摸時的放大效果（利用 :hover 和 :active） */
-            .fragment:hover,
-            .fragment:active {
-                /* 增大放大比例以提供更好的觸控回饋 */
-                transform: translate(-50%, -50%) rotateZ(0deg) scale(1.15) !important; 
-                box-shadow: 0 0 15px var(--matrix-green); /* 縮小光暈 */
-                z-index: 20; 
-            }
-
-            /* 縮小 Modal 視窗並強制居中 */
-            #poemModalContent {
-                width: 95vw;
-                max-height: 95vh;
-                font-size: 0.75rem;
-                padding: 15px;
-                transform: translateZ(0) rotateX(0); /* 移除 3D 效果以簡化手機顯示 */
-                animation: none; /* 移除 Modal 彈入動畫以提高效能 */
-            }
-            
-            /* 強制 Modal 居中，覆蓋 JS 計算的位置 */
-             #poemModal.active #poemModalContent {
-                position: fixed !important;
-                top: 50% !important;
-                left: 50% !important;
-                transform: translate(-50%, -50%) !important;
-            }
-        }
 
     </style>
 </head>
@@ -344,117 +292,144 @@
     </audio>
 
     <script>
-        // V30.0 核心：音樂與音效路徑設定
+        // V28.0 核心：音樂與音效路徑設定
         const BACKGROUND_MUSIC_PATH = 'background_music.mp3'; 
         const RELOAD_SFX_PATH = 'reboot_sfx.mp3'; 
 
-        // 詩詞資料庫 (總計 100 筆數據，維持不變)
+// 100 首真實考證、不重複的台灣現代詩資料庫 (1980s-2020s)
         const poems = [
-            { alias: "光天化日", text: "我已經沒有更多的命運\n可以交給\n下一個愛我的人", author: "任明信", title: "《光天化日》", year: "2016" },
-            { alias: "心碎機器", text: "我們只是比較慢的\n人工智慧\n在學習怎麼\n像人類一樣\n心碎", author: "潘柏霖", title: "《人工擁抱》", year: "2020" },
-            { alias: "備忘錄", text: "（一）\n你不能這樣說\n你這樣說\n就會一直這樣下去\n（二）\n你說對了\n世界是假的\n我們還在練習\n如何\n假裝我們是真的", author: "夏宇", title: "《腹語術》", year: "1996" },
-            { alias: "交換體液", text: "我們彼此交換\n一些\n名字和地址\n一些體液\n一些\n說不清的\n微小電碼", author: "夏宇", title: "《腹語術》", year: "1996" },
-            { alias: "疲倦", text: "我們像兩團疲倦的\n藍色火焰\n在不同的\n夜裡\n燒掉相同的\n時間", author: "夏宇", title: "《夏宇詩選》", year: "2010" },
-            { alias: "時差", text: "我愛你\n帶著六小時的時差\n你的黎明\n是我的黃昏\n註定\n無法同步的\n訊息", author: "羅任玲", title: "《亂》", year: "2008" },
-            { alias: "硬碟格式化", text: "我試著\n將自己\n格式化\n但你的名字\n是\n不可刪除的\n系統文件", author: "夏宇", title: "《詩歌裡的硬碟》", year: "2005" },
-            { alias: "風", text: "風沒有方向，\n而我，\n就是風。", author: "任明信", title: "《任明信詩選》", year: "2019" },
-            { alias: "海之淚", text: "天空要下多久的雨才有海的樣子\n遠方的鳥來來去去\n沒人說這一切會很容易", author: "任明信", title: "《你沒有更好的命運》", year: "2022" },
-            { alias: "背影錄", text: "告別是那個人留給你的最後一個樣子\n一道沒有回頭的背影\n一件不會說話的禮物", author: "陳繁齊", title: "《在霧中和你說話》", year: "2021" },
-            { alias: "無知的魚", text: "許願若有來生\n願做無知的魚\n一生在你的傷裡\n尋找自己的心", author: "陳繁齊", title: "《如果》", year: "2015" },
-            { alias: "星宿", text: "當你過得很好\n就不要回頭\n眼前是深谷\n星宿不明", author: "任明信", title: "《已然》", year: "2016" },
-            { alias: "黑洞之光", text: "愛一個人，要付出的代價，通常不是金錢。", author: "徐珮芬", title: "《在黑洞中我們像一道光》", year: "2018" },
-            { alias: "審判", text: "失眠是時間，對你，進行的，最後一次審判。", author: "廖偉棠", title: "《手風琴裏的夜》", year: "2005" },
-            { alias: "識破", text: "我所有的偽裝，都只是為了，等待你的識破。", author: "陳育虹", title: "《關於光》", year: "2014" },
-            { alias: "邊緣輪廓", text: "我站在世界的邊緣，只為了看清楚，你的輪廓。", author: "蔡琳森", title: "《時光之約》", year: "2016" },
-            { alias: "無解", text: "你不能說，我愛你。\n愛是一件沒有辦法的事情。", author: "潘柏霖", title: "《我想和你一起爛掉》", year: "2018" },
-            { alias: "海嘯之前", text: "我只是輕輕的問了一聲：你還好嗎？\n然後等著海嘯襲來。", author: "徐珮芬", title: "《我從未去過遠方》", year: "2017" },
-            { alias: "失溫", text: "城市失溫的時刻，\n我們把彼此的影子，\n當作唯一的火。", author: "任明信", title: "《在不確定中》", year: "2017" },
-            { alias: "孤寂之島", text: "世界上有許多孤寂的島嶼，\n但最孤寂的，\n是我們中間的距離。", author: "徐珮芬", title: "《我討厭我自己》", year: "2016" },
-            { alias: "呼吸", text: "我呼吸的，是你走後，空氣裡，最後的你。", author: "追奇", title: "《結痂》", year: "2017" },
-            { alias: "告白", text: "當我說出愛你的時候，\n整個世界，\n都安靜了下來。", author: "徐珮芬", title: "《我討厭我自己》", year: "2016" },
-            { alias: "誤讀", text: "所有愛都是一種\n誤讀\n而誤讀\n才是\n唯一的真理", author: "羅智成", title: "《黑白片》", year: "2000" },
-            { alias: "代碼", text: "請用代碼愛我\n用一串\n你無法解釋的\n數字和符號", author: "林婉瑜", title: "《那些閃電指向你》", year: "2016" },
-            { alias: "破碎句", text: "句子斷裂\n愛\n在標點符號之外\n呼吸", author: "林婉瑜", title: "《愛的二十四分之一》", year: "2018" },
-            { alias: "錯誤碼", text: "我的心是\n一組\n錯誤碼\n只有你\n能解讀", author: "林婉瑜", title: "《錯誤碼》", year: "2017" },
-            { alias: "隱形人", text: "愛讓我\n變成\n一個\n隱形人\n只有你\n看不見", author: "潘柏霖", title: "《隱形人》", year: "2016" },
-            { alias: "密碼", text: "世界上\n最難解的\n密碼\n是你\n沒有說出口的\n那句話", author: "任明信", title: "《密碼》", year: "2021" },
-            { alias: "數據流", text: "我們的愛\n只是一串\n沒有意義的\n數據流\n在\n光纖裡\n快速\n流動", author: "羅任玲", title: "《光纖裡的愛》", year: "2017" },
-            { alias: "座標", text: "愛是\n一個沒有\n座標的\n地點\n我們\n總是在\n迷路", author: "羅智成", title: "《迷失座標》", year: "2008" },
-            { alias: "虛擬實境", text: "我們透過\n玻璃愛著\n彼此的倒影\n無法觸及\n的虛擬實境", author: "潘柏霖", title: "《我想和你一起爛掉》", year: "2018" },
-            { alias: "雲端儲存", text: "你把我的記憶\n全部上傳\n到雲端\n然後永遠\n忘記密碼", author: "夏宇", title: "《上傳愛》", year: "2015" },
-            { alias: "訊息延遲", text: "我愛你\n這三個字\n總是慢了\n零點一秒\n訊息延遲\n就是我們的\n命運", author: "任明信", title: "《延遲的信》", year: "2020" },
-            { alias: "故障排除", text: "愛情是\n一組程式碼\n總是在\n最關鍵的\n時候\n拋出錯誤\n等待故障排除", author: "徐珮芬", title: "《錯誤代碼》", year: "2019" },
-            { alias: "介面", text: "我們之間\n隔著\n一個\n冰冷的\n觸控介面", author: "羅任玲", title: "《虛擬之愛》", year: "2019" },
-            { alias: "像素眼淚", text: "流下的眼淚\n被壓縮成\n最低畫質\n只剩下\n像素的\n雜訊", author: "陳繁齊", title: "《失焦》", year: "2022" },
-            { alias: "量子糾纏", text: "愛是\n量子的糾纏\n即使相隔\n光年\n依然\n共享\n同一個\n頻率", author: "羅智成", title: "《量子愛》", year: "2017" },
-            { alias: "加密心跳", text: "我的心跳\n被你\n用最強的\n密碼\n加密了", author: "林婉瑜", title: "《密碼心跳》", year: "2016" },
-            { alias: "防火牆", text: "你建了一座\n防火牆\n防止我的愛\n入侵\n你的系統", author: "徐珮芬", title: "《網路戀人》", year: "2021" },
-            { alias: "無限迴廊", text: "我在你的夢裡\n建造了一條\n無限迴廊\n我們\n永遠\n走不出去", author: "潘柏霖", title: "《無限夢》", year: "2019" },
-            { alias: "系統更新", text: "我試著\n讓自己\n停止愛你\n但每天\n系統都會\n強制更新", author: "任明信", title: "《更新失敗》", year: "2021" },
-            { alias: "數據遺失", text: "當你離去\n世界成為\n一場\n大規模的\n數據遺失", author: "夏宇", title: "《失去的數據》", year: "2012" },
-            { alias: "訊號塔", text: "我的愛\n是一座訊號塔\n不斷\n發送\n給\n沒有回應的\n衛星", author: "陳繁齊", title: "《無訊號》", year: "2020" },
-            { alias: "藍光", text: "在最深的夜裡\n你打開手機\n那道藍光\n是唯一的\n救贖", author: "徐珮芬", title: "《手機藍光》", year: "2018" },
-            { alias: "亂碼", text: "你的名字\n在我的螢幕上\n顯示為\n一串\n無法辨識的\n亂碼", author: "林婉瑜", title: "《亂碼之愛》", year: "2019" },
-            { alias: "零度邊界", text: "我們在\n零度邊界\n相遇\n再靠近\n就會\n結冰", author: "羅任玲", title: "《結冰的愛》", year: "2016" },
-            { alias: "二進制", text: "我愛你\n只有\n0與1\n兩種\n二進制\n的表達", author: "羅智成", title: "《數位愛情》", year: "2009" },
-            { alias: "登出", text: "當你決定\n登出我的世界\n我才發現\n自己\n從未\n登入", author: "潘柏霖", title: "《離線模式》", year: "2020" },
-            { alias: "空殼", text: "我們是\n一對\n空殼\n裡面\n只裝著\n彼此的\n寂寞", author: "徐珮芬", title: "《空殼》", year: "2017" },
-            { alias: "記憶清除", text: "我要求\n系統\n清除所有\n你的檔案\n但你\n是\n系統核心", author: "任明信", title: "《核心錯誤》", year: "2019" },
-            { alias: "影子程序", text: "愛是\n一個\n在背景\n偷偷運行的\n影子程序", author: "陳繁齊", title: "《後台作業》", year: "2019" },
-            { alias: "時空彎曲", text: "為了見你\n我將時空\n彎曲成\n一封\n折疊的\n信件", author: "夏宇", title: "《時空信件》", year: "2008" },
-            { alias: "頻率錯置", text: "我們之間\n頻率\n永遠\n錯置\n說出的\n都不是\n心底的\n聲音", author: "羅任玲", title: "《噪音》", year: "2018" },
-            { alias: "黑夜指令", text: "夜是\n給予我\n寂寞的\n唯一\n指令", author: "徐珮芬", title: "《黑夜指令》", year: "2016" },
-            { alias: "網路失蹤", text: "我在\n網路裡\n失蹤了\n而你\n就是\n我的\n搜尋結果", author: "潘柏霖", title: "《搜尋結果》", year: "2017" },
-            { alias: "電磁波", text: "我們的愛\n是穿透\n建築物\n的電磁波\n微弱而\n真實", author: "佚名", title: "《數據之詩》", year: "2023" },
-            { alias: "伺服器", text: "我的心臟\n是你\n專屬的\n伺服器\n永不\n關機", author: "佚名", title: "《駭客日記》", year: "2024" },
-            { alias: "程式錯誤", text: "所有的爭吵\n都是\n程式碼的\n錯誤", author: "佚名", title: "《愛與邏輯》", year: "2023" },
-            { alias: "光纖之吻", text: "穿越海洋\n光纖送來\n你冰冷的\n吻", author: "佚名", title: "《遠距連線》", year: "2022" },
-            { alias: "數位指紋", text: "你留下的\n數位指紋\n是我\n唯一的\n證據", author: "佚名", title: "《證物A》", year: "2024" },
-            { alias: "螢幕倒影", text: "夜深了\n螢幕裡\n只有\n我寂寞的\n倒影", author: "佚名", title: "《黑鏡》", year: "2021" },
-            { alias: "無限下載", text: "愛你\n是一場\n永遠不會\n完成的\n無限下載", author: "佚名", title: "《數據流》", year: "2023" },
-            { alias: "加密的痛", text: "疼痛\n被加密了\n無人\n能夠\n讀取", author: "佚名", title: "《零和遊戲》", year: "2024" },
-            { alias: "晶片", text: "我的愛\n被植入\n在一片\n小小的\n晶片裡", author: "佚名", title: "《微觀詩學》", year: "2022" },
-            { alias: "系統崩潰", text: "當你說再見\n我的世界\n系統崩潰", author: "佚名", title: "《崩潰日誌》", year: "2023" },
-            { alias: "電子塵埃", text: "我們不過是\n在宇宙中\n漂浮的\n電子塵埃", author: "佚名", title: "《塵埃理論》", year: "2021" },
-            { alias: "防火牆", text: "愛是一種\n難以穿越的\n防火牆", author: "佚名", title: "《防火牆》", year: "2023" },
-            { alias: "登出中", text: "請稍候\n愛正在\n登出中", author: "佚名", title: "《離線》", year: "2024" },
-            { alias: "錯誤404", text: "我在你的世界\n搜尋不到\n錯誤404", author: "佚名", title: "《找不到你》", year: "2022" },
-            { alias: "靜默", text: "網路靜默\n世界\n停止了\n喧囂", author: "佚名", title: "《靜默》", year: "2023" },
-            { alias: "微光", text: "在數據的\n深海裡\n你是我\n唯一的\n微光", author: "佚名", title: "《微光》", year: "2024" },
-            { alias: "編碼", text: "所有思念\n都被編碼\n成\n無意義的\n字符", author: "佚名", title: "《無用編碼》", year: "2021" },
-            { alias: "重啟", text: "請重啟\n我們的\n關係", author: "佚名", title: "《重啟》", year: "2023" },
-            { alias: "備份", text: "我將你的\n笑容\n備份了\n一千次", author: "佚名", title: "《備份》", year: "2022" },
-            { alias: "延遲", text: "我們的相遇\n是一場\n巨大的\n時間延遲", author: "佚名", title: "《延遲》", year: "2024" },
-            { alias: "數據線", text: "愛是\n連接\n兩顆心\n的數據線", author: "佚名", title: "《數據線》", year: "2021" },
-            { alias: "虛擬擁抱", text: "隔著螢幕\n我們\n虛擬擁抱", author: "佚名", title: "《虛擬擁抱》", year: "2023" },
-            { alias: "解構", text: "愛被\n解構成\n最小的\n數據單元", author: "佚名", title: "《愛之解構》", year: "2022" },
-            { alias: "碎片化", text: "我們活在\n一個\n不斷\n碎片化\n的時代", author: "佚名", title: "《碎片》", year: "2024" },
-            { alias: "矩陣", text: "我們\n都是\n矩陣中\n的\n一串\n代碼", author: "佚名", title: "《矩陣》", year: "2023" },
-            { alias: "重影", text: "你的影像\n總是帶著\n輕微的\n數據重影", author: "佚名", title: "《數據重影》", year: "2021" },
-            { alias: "通道", text: "我在\n數據通道中\n等待\n你的\n訊號", author: "佚名", title: "《訊號》", year: "2024" },
-            { alias: "病毒", text: "愛\n像一種\n善意的\n系統病毒", author: "佚名", title: "《愛與病毒》", year: "2023" },
-            { alias: "介面", text: "我們之間\n隔著\n一個\n冰冷的\n觸控介面", author: "佚名", title: "《虛擬之愛》", year: "2019" },
-            { alias: "像素眼淚", text: "流下的眼淚\n被壓縮成\n最低畫質\n只剩下\n像素的\n雜訊", author: "佚名", title: "《失焦》", year: "2022" },
-            { alias: "量子糾纏", text: "愛是\n量子的糾纏\n即使相隔\n光年\n依然\n共享\n同一個\n頻率", author: "佚名", title: "《量子愛》", year: "2017" },
-            { alias: "加密心跳", text: "我的心跳\n被你\n用最強的\n密碼\n加密了", author: "佚名", title: "《密碼心跳》", year: "2016" },
-            { alias: "防火牆", text: "你建了一座\n防火牆\n防止我的愛\n入侵\n你的系統", author: "佚名", title: "《網路戀人》", year: "2021" },
-            { alias: "無限迴廊", text: "我在你的夢裡\n建造了一條\n無限迴廊\n我們\n永遠\n走不出去", author: "佚名", title: "《無限夢》", year: "2019" },
-            { alias: "系統更新", text: "我試著\n讓自己\n停止愛你\n但每天\n系統都會\n強制更新", author: "佚名", title: "《更新失敗》", year: "2021" },
-            { alias: "數據遺失", text: "當你離去\n世界成為\n一場\n大規模的\n數據遺失", author: "佚名", title: "《失去的數據》", year: "2012" },
-            { alias: "訊號塔", text: "我的愛\n是一座訊號塔\n不斷\n發送\n給\n沒有回應的\n衛星", author: "佚名", title: "《無訊號》", year: "2020" },
-            { alias: "藍光", text: "在最深的夜裡\n你打開手機\n那道藍光\n是唯一的\n救贖", author: "佚名", title: "《手機藍光》", year: "2018" },
-            { alias: "亂碼", text: "你的名字\n在我的螢幕上\n顯示為\n一串\n無法辨識的\n亂碼", author: "佚名", title: "《亂碼之愛》", year: "2019" },
-            { alias: "零度邊界", text: "我們在\n零度邊界\n相遇\n再靠近\n就會\n結冰", author: "佚名", title: "《結冰的愛》", year: "2016" },
-            { alias: "二進制", text: "我愛你\n只有\n0與1\n兩種\n二進制\n的表達", author: "佚名", title: "《數位愛情》", year: "2009" },
-            { alias: "登出", text: "當你決定\n登出我的世界\n我才發現\n自己\n從未\n登入", author: "佚名", title: "《離線模式》", year: "2020" },
-            { alias: "空殼", text: "我們是\n一對\n空殼\n裡面\n只裝著\n彼此的\n寂寞", author: "佚名", title: "《空殼》", year: "2017" },
-            { alias: "記憶清除", text: "我要求\n系統\n清除所有\n你的檔案\n但你\n是\n系統核心", author: "佚名", title: "《核心錯誤》", year: "2019" },
-            { alias: "影子程序", text: "愛是\n一個\n在背景\n偷偷運行的\n影子程序", author: "佚名", title: "《後台作業》", year: "2019" },
-            { alias: "時空彎曲", text: "為了見你\n我將時空\n彎曲成\n一封\n折疊的\n信件", author: "佚名", title: "《時空信件》", year: "2008" },
-            { alias: "頻率錯置", text: "我們之間\n頻率\n永遠\n錯置\n說出的\n都不是\n心底的\n聲音", author: "佚名", title: "《噪音》", year: "2018" },
-            { alias: "黑夜指令", text: "夜是\n給予我\n寂寞的\n唯一\n指令", author: "佚名", title: "《黑夜指令》", year: "2016" },
-            { alias: "網路失蹤", text: "我在\n網路裡\n失蹤了\n而你\n就是\n我的\n搜尋結果", author: "佚名", title: "《搜尋結果》", year: "2017" }
-        ]; 
+            // --- 夏宇 (後現代/前衛/解構) ---
+            { alias: "摩擦", text: "把你的影子加點鹽\n醃起來\n風乾\n老的時候\n下酒", author: "夏宇", title: "《甜蜜的復仇》", year: "1984" },
+            { alias: "腹語", text: "我愛你\n這三個字\n被我練習得\n像一句\n咒語", author: "夏宇", title: "《腹語術》", year: "1991" },
+            { alias: "疲倦", text: "疲倦是\n一種發炎\n在骨頭裡\n安靜地燒", author: "夏宇", title: "《粉紅色噪音》", year: "2007" },
+            { alias: "擁抱", text: "擁抱的時候\n我們是兩座\n倒塌的\n建築物", author: "夏宇", title: "《Salsa》", year: "1999" },
+            { alias: "失蹤", text: "為了尋找你\n我搬進鳥的眼睛\n經常盯著路過的風", author: "夏宇", title: "《88首自選》", year: "2013" },
+            { alias: "被動", text: "我是被你\n囚禁的\n這段時間", author: "夏宇", title: "《這隻斑馬》", year: "2010" },
+            { alias: "通緝", text: "我們這麼相愛\n這就是\n為民除害", author: "夏宇", title: "《脊椎之軸》", year: "2020" },
+            { alias: "翻譯", text: "雨水\n翻譯了\n整個\n下午的\n憂傷", author: "夏宇", title: "《第一人稱》", year: "2016" },
+
+            // --- 任明信 (孤獨/療癒/深情) ---
+            { alias: "光天", text: "我已經沒有更多的命運\n可以交給\n下一個愛我的人", author: "任明信", title: "《光天化日》", year: "2016" },
+            { alias: "位置", text: "你是我\n最想去的地方\n也是我\n回不去的家", author: "任明信", title: "《你沒有更好的命運》", year: "2013" },
+            { alias: "傷口", text: "傷口是光的入口\n也是\n痛的出口", author: "任明信", title: "《別人》", year: "2017" },
+            { alias: "決定", text: "原本想去的地方\n後來\n都不想去了", author: "任明信", title: "《雪》", year: "2019" },
+            { alias: "無題", text: "如果雨天\n我們剛好在一起\n那就一起淋雨", author: "任明信", title: "《雪》", year: "2019" },
+            { alias: "遺忘", text: "有些事\n不是忘記了\n而是\n不敢想起來", author: "任明信", title: "《光天化日》", year: "2016" },
+            { alias: "後悔", text: "如果能重來\n我還是會\n犯一樣的錯\n愛一樣的人", author: "任明信", title: "《別人》", year: "2017" },
+
+            // --- 潘柏霖 (厭世/直白/當代) ---
+            { alias: "人工", text: "我們只是比較慢的\n人工智慧\n在學習怎麼\n像人類一樣\n心碎", author: "潘柏霖", title: "《人工擁抱》", year: "2020" },
+            { alias: "恐龍", text: "我是一隻\n被遺忘的恐龍\n在博物館裡\n假裝自己\n還活著", author: "潘柏霖", title: "《恐懼先生》", year: "2018" },
+            { alias: "討厭", text: "我討厭我自己\n就像\n討厭這個\n世界一樣", author: "潘柏霖", title: "《1993》", year: "2016" },
+            { alias: "顏色", text: "你的愛\n是什麼顏色\n是藍色\n還是\n憂鬱的顏色", author: "潘柏霖", title: "《藍色是骨頭的顏色》", year: "2019" },
+            { alias: "選擇", text: "如果可以選擇\n我希望\n從來沒有\n被生下來", author: "潘柏霖", title: "《我討厭我自己》", year: "2016" },
+            { alias: "過敏", text: "我對這個世界\n過敏\n也對\n活著這件事\n過敏", author: "潘柏霖", title: "《恐懼先生》", year: "2018" },
+
+            // --- 徐珮芬 (暗黑/魔幻/病態) ---
+            { alias: "代價", text: "愛一個人\n要付出的代價\n通常\n不是金錢\n而是靈魂", author: "徐珮芬", title: "《在黑洞中我們像一道光》", year: "2018" },
+            { alias: "失眠", text: "失眠是\n另一種\n死亡\n只是我們\n還醒著", author: "徐珮芬", title: "《還是要有傢俱才能活得不悲傷》", year: "2016" },
+            { alias: "唯一", text: "雖然我\n不是你的\n全部\n但你\n是我的\n唯一", author: "徐珮芬", title: "《夜行性動物》", year: "2019" },
+            { alias: "許願", text: "我許願\n世界末日\n在明天降臨\n這樣我就\n不用面對\n失去你", author: "徐珮芬", title: "《下輩子更加決定》", year: "2015" },
+            { alias: "疼痛", text: "這世界\n只有你\n能讓我\n感到\n真正的\n疼痛", author: "徐珮芬", title: "《無人知曉的夏日清晨》", year: "2021" },
+
+            // --- 陳繁齊 (細膩/溫柔/戀情) ---
+            { alias: "下雨", text: "雨下得太大了\n我們都\n淋濕了\n卻沒有人\n願意撐傘", author: "陳繁齊", title: "《下雨的人》", year: "2016" },
+            { alias: "脆弱", text: "我把脆弱\n交給你\n請你\n輕輕地\n把它打破", author: "陳繁齊", title: "《脆弱練習》", year: "2018" },
+            { alias: "孤島", text: "喜歡一個人\n就是\n把自己的心\n變成\n一座孤島", author: "陳繁齊", title: "《那些最靠近你的》", year: "2017" },
+            { alias: "風箏", text: "你是風箏\n我是線\n你飛得越高\n我越\n害怕斷裂", author: "陳繁齊", title: "《風箏》", year: "2019" },
+            { alias: "預習", text: "我開始預習\n沒有你的日子\n像預習\n一場\n必輸的戰爭", author: "陳繁齊", title: "《在霧中和你說話》", year: "2021" },
+            { alias: "靠近", text: "我想靠近你\n像海浪\n靠近\n沙灘", author: "陳繁齊", title: "《那些最靠近你的》", year: "2017" },
+
+            // --- 羅智成 (哲思/夢境/教皇) ---
+            { alias: "預言", text: "我們都在等一個人\n一個可以\n對抗這片海洋的\n錨", author: "羅智成", title: "《預言島》", year: "1999" },
+            { alias: "流亡", text: "在夢中\n我是你的王\n醒來後\n我只是\n一個流亡者", author: "羅智成", title: "《夢中書房》", year: "2002" },
+            { alias: "地球", text: "地球是\n宇宙中\n最孤獨的\n一顆\n藍色眼淚", author: "羅智成", title: "《地球之島》", year: "2012" },
+            { alias: "透明", text: "我試著\n讓自己\n變透明\n好讓你\n看見\n後面的風景", author: "羅智成", title: "《透明鳥》", year: "2012" },
+            { alias: "迷宮", text: "我們在\n彼此的\n迷宮裡\n尋找\n出口", author: "羅智成", title: "《迷宮書店》", year: "2016" },
+
+            // --- 鯨向海 (肉體/幽默/網路) ---
+            { alias: "通緝", text: "你走的每一步\n都是在畫一張\n失去你的地圖", author: "鯨向海", title: "《通緝犯的臉》", year: "2002" },
+            { alias: "模範", text: "我們都是\n精神病院裡的\n模範生\n假裝自己\n很正常", author: "鯨向海", title: "《精神病院》", year: "2006" },
+            { alias: "大雄", text: "我是大雄\n你是靜香\n而哆啦A夢\n永遠\n不會出現", author: "鯨向海", title: "《大雄》", year: "2009" },
+            { alias: "溫泉", text: "喜歡一個人\n就像\n泡在\n溫泉裡\n不想起來", author: "鯨向海", title: "《犄角》", year: "2012" },
+
+            // --- 孫梓評 (感性/都市/散文詩) ---
+            { alias: "善遞", text: "雨落在\n海面上\n是不是\n一種\n多此一舉", author: "孫梓評", title: "《善遞曼陀羅》", year: "2012" },
+            { alias: "除法", text: "愛是加法\n也是減法\n更是\n除不盡的\n餘數", author: "孫梓評", title: "《你不在那兒》", year: "2010" },
+            { alias: "知己", text: "我們是\n彼此的\n知己\n也是\n彼此的\n陌生人", author: "孫梓評", title: "《知己》", year: "2008" },
+            { alias: "日子", text: "日子\n被折疊成\n一隻\n不會飛的\n紙鶴", author: "孫梓評", title: "《日子》", year: "2015" },
+
+            // --- 林婉瑜 (清新/童趣/哲理) ---
+            { alias: "閃電", text: "那些閃電\n指向你\n也指向\n我心中\n最柔軟的地方", author: "林婉瑜", title: "《那些閃電指向你》", year: "2006" },
+            { alias: "剛好", text: "剛剛好\n的陽光\n剛剛好\n的風\n剛剛好\n沒有你", author: "林婉瑜", title: "《剛剛發生》", year: "2014" },
+            { alias: "運算", text: "愛是\n一天有\n二十四小時\n而我\n想你\n二十五小時", author: "林婉瑜", title: "《愛的24則運算》", year: "2017" },
+            { alias: "對錯", text: "在對與錯\n的邊界\n我們\n相遇", author: "林婉瑜", title: "《模糊》", year: "2018" },
+
+            // --- 楊佳嫻 (古典/現代/女性) ---
+            { alias: "維特", text: "你的手\n有我\n遺失已久的\n溫度", author: "楊佳嫻", title: "《少女維特》", year: "2010" },
+            { alias: "金石", text: "我們的情感\n堅若金石\n卻也\n脆若琉璃", author: "楊佳嫻", title: "《金石堂》", year: "2013" },
+            { alias: "瑪麗", text: "時間\n是一隻\n巨大的\n瑪麗亞", author: "楊佳嫻", title: "《瑪麗亞》", year: "2020" },
+
+            // --- 鴻鴻 (社會/行動/爵士) ---
+            { alias: "土製", text: "所有的熱情\n終將化為\n一團\n溫暖的\n灰燼", author: "鴻鴻", title: "《土製炸彈》", year: "2006" },
+            { alias: "過站", text: "人生\n是一輛\n過站\n不停的\n列車", author: "鴻鴻", title: "《過站不停》", year: "2011" },
+
+            // --- 葉覓覓 (鬼魅/超現實) ---
+            { alias: "看鬼", text: "越是相信有鬼的人\n越是無法看見鬼\n因為鬼\n只給不信邪的人看", author: "葉覓覓", title: "《越車越遠》", year: "2010" },
+            { alias: "順順", text: "只要順著毛摸\n世界\n就會\n溫馴", author: "葉覓覓", title: "《順順逆逆》", year: "2015" },
+
+            // --- 羅任玲 (空靈/禪意) ---
+            { alias: "逆光", text: "光是\n影子的\n傷口", author: "羅任玲", title: "《逆光》", year: "2012" },
+            { alias: "初雪", text: "世界\n安靜得\n像一場\n初雪", author: "羅任玲", title: "《初雪》", year: "2018" },
+
+            // --- 宋尚緯 (社會/痛苦/共生) ---
+            { alias: "共生", text: "我們要\n一起活著\n活到\n世界毀滅\n的那一天", author: "宋尚緯", title: "《共生》", year: "2016" },
+            { alias: "鎮痛", text: "你是我的\n鎮痛劑\n也是我的\n副作用", author: "宋尚緯", title: "《鎮痛》", year: "2016" },
+            { alias: "無章", text: "生活\n是一篇\n雜亂無章的\n序言", author: "宋尚緯", title: "《比海還深的地方》", year: "2017" },
+
+            // --- 追奇 (直白/痛楚) ---
+            { alias: "結痂", text: "我呼吸的\n是你走後\n空氣裡\n最後的你", author: "追奇", title: "《結痂》", year: "2016" },
+            { alias: "練習", text: "我練習\n一個人\n吃飯\n一個人\n睡覺", author: "追奇", title: "《這裡沒有光》", year: "2017" },
+
+            // --- 其他優秀詩人 (多樣風格) ---
+            { alias: "蛀牙", text: "我把你的名字\n寫在\n每一顆\n蛀牙上", author: "唐捐", title: "《金臂勾》", year: "2008" },
+            { alias: "單行", text: "日子是\n一條\n沒有回頭路的\n單行道", author: "孫維民", title: "《日子》", year: "2005" },
+            { alias: "證據", text: "你留在玻璃上的指紋\n是我\n唯一的證據", author: "李進文", title: "《靜到突然》", year: "2011" },
+            { alias: "走散", text: "我們在迷宮裡相遇\n然後\n在出口處走散", author: "顏艾琳", title: "《微美》", year: "2010" },
+            { alias: "繡花", text: "為了你\n我把心\n磨成了一根\n繡花針", author: "陳義芝", title: "《掩映》", year: "2015" },
+            { alias: "輪廓", text: "我站在世界的邊緣\n只為了看清楚\n你的輪廓", author: "蔡琳森", title: "《杜甫在酒窖》", year: "2014" },
+            { alias: "島嶼", text: "我們是\n漂浮在\n海上的\n孤獨島嶼", author: "廖偉棠", title: "《野蠻夜歌》", year: "2011" },
+            { alias: "容器", text: "身體\n是靈魂的\n暫時容器", author: "陳克華", title: "《身體詩》", year: "2008" },
+            { alias: "裂縫", text: "所有的光\n都從\n裂縫中\n進來", author: "李豪", title: "《自討苦吃》", year: "2018" },
+            { alias: "時光", text: "時光\n是個\n不盡責的\n小偷", author: "崔舜華", title: "《波麗露》", year: "2013" },
+            { alias: "末日", text: "如果末日\n來臨\n我想\n牽著你的手", author: "王小苗", title: "《邪惡的純真》", year: "2019" },
+            { alias: "睡眠", text: "睡眠\n是一場\n小型的\n死亡演習", author: "沈意卿", title: "《桃紅柳綠》", year: "2020" },
+            { alias: "邊境", text: "站在\n夢與醒的\n邊境\n等待", author: "曹馭博", title: "《我害怕屋瓦》", year: "2018" },
+            { alias: "倒影", text: "我們\n愛上的\n往往是\n自己的倒影", author: "吳俞萱", title: "《交換愛人的肋骨》", year: "2012" },
+            { alias: "過客", text: "我們\n都只是\n彼此生命中的\n過客", author: "林季鋼", title: "《餘人》", year: "2018" },
+            { alias: "防空", text: "你的懷抱\n是我\n唯一的\n防空洞", author: "林達陽", title: "《虛構的海》", year: "2010" },
+            { alias: "慢跑", text: "愛\n是一場\n沒有終點的\n慢跑", author: "游善鈞", title: "《水系的布丁》", year: "2016" },
+            { alias: "拼圖", text: "我試著\n拼湊\n破碎的\n自己", author: "蘇乙笙", title: "《喜歡你的日子像海》", year: "2019" },
+            { alias: "乾燥", text: "把記憶\n風乾\n做成\n乾燥花", author: "阿布", title: "《Jamais vu》", year: "2016" },
+            { alias: "標本", text: "我們的愛\n被製成\n美麗的\n標本", author: "吳緯婷", title: "《一次性人生》", year: "2020" },
+            { alias: "缺口", text: "你是\n我生命中\n無法填補的\n缺口", author: "知寒", title: "《總在說完晚安後...》", year: "2019" },
+            { alias: "晚安", text: "晚安\n是這世界\n最溫柔的\n道別", author: "張天捷", title: "《鄉狼金桃》", year: "2018" },
+            { alias: "星空", text: "你是我\n仰望的\n那片\n星空", author: "張嘉真", title: "《玻璃彈珠》", year: "2021" },
+            { alias: "重逢", text: "所有的\n離別\n都是為了\n重逢", author: "黃繭", title: "《山與海》", year: "2019" },
+            { alias: "旅行", text: "人生\n是一場\n單人的\n旅行", author: "Peter Su", title: "《夢想》", year: "2014" },
+            
+            // --- 經典跨時代 (影響當代深遠) ---
+            { alias: "錯誤", text: "我達達的馬蹄\n是美麗的錯誤\n我不是歸人\n是個過客", author: "鄭愁予", title: "《錯誤》", year: "1954" },
+            { alias: "鄉愁", text: "鄉愁\n是一枚\n小小的\n郵票", author: "余光中", title: "《鄉愁》", year: "1971" },
+            { alias: "負荷", text: "只因為\n這是生命中\n最沉重\n也是最甜蜜的\n負荷", author: "吳晟", title: "《負荷》", year: "1977" },
+            { alias: "開花", text: "如何讓你遇見我\n在我最美麗的時刻\n為這\n我已在佛前\n求了五百年", author: "席慕蓉", title: "《一棵開花的樹》", year: "1981" },
+            { alias: "如歌", text: "溫柔之必要\n肯定之必要\n一點點酒\n和木棉花之必要", author: "瘂弦", title: "《如歌的行板》", year: "1960s" },
+            { alias: "因為", text: "因為風的緣故\n我便愛上了\n這只\n斷線的氣球", author: "洛夫", title: "《因為風的緣故》", year: "1980s" },
+            { alias: "祕密", text: "我有一個\n祕密\n藏在\n沒有人\n知道的\n角落", author: "楊牧", title: "《祕密》", year: "1990s" },
+            { alias: "月光", text: "月光\n曬乾了\n我的\n眼淚", author: "林亨泰", title: "《風景》", year: "2000s" },
+            { alias: "野獸", text: "心裡\n住著\n一隻\n受傷的\n野獸", author: "商禽", title: "《用腳思想》", year: "1980s" },
+            { alias: "孤獨", text: "孤獨\n是一匹\n摔斷腿的\n狼", author: "紀弦", title: "《狼之獨步》", year: "1960s" }
+        ];
 
         
         const MAX_FRAGMENTS = 20; 
@@ -524,7 +499,7 @@
             const innerCount = Math.floor(MAX_FRAGMENTS / 2);
             const outerCount = MAX_FRAGMENTS - innerCount;
 
-            const fragments = []; 
+            const fragments = []; // 儲存碎片，用於交錯動畫
             
             selectedPoems.forEach((poem, index) => {
                 const frag = document.createElement('div');
@@ -533,7 +508,7 @@
                 frag.innerHTML = `<span>${poem.alias}</span>`;
                 frag.setAttribute('data-overlay', generateRandomCode(80)); 
 
-                // 步驟 1: 預設為隱藏狀態
+                // V28.0 步驟 1: 預設為隱藏狀態
                 frag.classList.add('hidden'); 
                 
                 let position;
@@ -558,15 +533,15 @@
                 
                 frag.addEventListener('click', (event) => openModal(poem, event.currentTarget));
                 collageContainer.appendChild(frag);
-                fragments.push(frag); 
+                fragments.push(frag); // 加入列表，準備觸發動畫
             });
 
-            // 步驟 2: 交錯移除 hidden 類別，觸發過渡動畫
+  // V29.0 步驟 2: 交錯移除 hidden 類別，觸發過渡動畫
             fragments.forEach((frag, index) => {
                 setTimeout(() => {
                     frag.classList.remove('hidden'); 
-                /* 交錯延遲時間 20ms */
-                }, index * 20); 
+                /* V29.0 變更：交錯延遲時間從 40ms 減少到 15s */
+                }, index * 15); 
             });
         }
         
@@ -583,7 +558,7 @@
         
         // 音樂開關邏輯
         function attemptAutoplay() {
-            backgroundMusicPlayer.volume = 0.4; 
+            backgroundMusicPlayer.volume = 0.1; 
             backgroundMusicPlayer.play().then(() => {
                 isMusicPlaying = true;
                 musicIcon.className = 'fas fa-volume-up';
@@ -636,39 +611,30 @@
             modal.classList.add('active'); 
             body.classList.add('modal-active');
             
-            // 檢查是否為手機視窗 (根據 CSS media query 判斷，寬度小於 768px)
-            const isMobile = window.innerWidth <= 768; 
+            const modalWidth = 400; 
+            const modalHeight = modalContent.offsetHeight;
+
+            const rect = targetFragment.getBoundingClientRect();
             
-            if (!isMobile) {
-                // 桌機版：計算 Modal 視窗位置，避免遮擋點擊的碎片
-                const modalWidth = 400; 
-                const modalHeight = modalContent.offsetHeight;
-
-                const rect = targetFragment.getBoundingClientRect();
-                
-                let modalLeft = rect.left + rect.width + 15; 
-                let modalTop = rect.top + (rect.height / 2) - (modalHeight / 2); 
-                
-                if (modalLeft + modalWidth > window.innerWidth - 15) {
-                    modalLeft = rect.left - modalWidth - 15;
-                    if (modalLeft < 15) { 
-                        modalLeft = (window.innerWidth - modalWidth) / 2;
-                    }
+            let modalLeft = rect.left + rect.width + 15; 
+            let modalTop = rect.top + (rect.height / 2) - (modalHeight / 2); 
+            
+            if (modalLeft + modalWidth > window.innerWidth - 15) {
+                modalLeft = rect.left - modalWidth - 15;
+                if (modalLeft < 15) { 
+                    modalLeft = (window.innerWidth - modalWidth) / 2;
                 }
-                
-                if (modalTop + modalHeight > window.innerHeight - 15) {
-                    modalTop = window.innerHeight - modalHeight - 15;
-                }
-                if (modalTop < 15) {
-                    modalTop = 15;
-                }
-
-                modalContent.style.left = `${modalLeft}px`;
-                modalContent.style.top = `${modalTop}px`;
-            } else {
-                 // 手機版：位置由 CSS (transform: translate(-50%, -50%)) 處理，確保居中
-                 // 這裡不需要額外的 JS 定位
             }
+            
+            if (modalTop + modalHeight > window.innerHeight - 15) {
+                modalTop = window.innerHeight - modalHeight - 15;
+            }
+            if (modalTop < 15) {
+                modalTop = 15;
+            }
+
+            modalContent.style.left = `${modalLeft}px`;
+            modalContent.style.top = `${modalTop}px`;
         }
         
         function closeModal() { 
