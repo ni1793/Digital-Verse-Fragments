@@ -11,21 +11,25 @@
     <style>
 /* ============== 底部製作人資訊欄 (V38.0 新增) ============== */
 #footer-credits {
-    position: fixed; /* 讓它固定在視窗的某個位置 */
-    bottom: 0;      /* 確保它吸附在底部 */
+    position: fixed; 
+    bottom: 0;      
     left: 0;
-    width: 100%;    /* 寬度佔滿整個螢幕 */
-    background-color: rgba(0, 0, 0, 0.85); /* 半透明黑底 */
-    border-top: 1px solid rgba(0, 255, 0, 0.3);
+    width: 100%;    
+    background-color: rgba(0, 0, 0, 0.85); 
+    
+    /* 修正 1: 頂部橫線顏色 (使用動態光暈變數) */
+    border-top: 1px solid var(--matrix-green-glow);
+    
     padding: 10px;
     z-index: 200; 
     text-align: center;
     font-family: var(--code-font);
-    font-size: 0.7rem; /* 基本字體大小 */
-    color: rgba(0, 255, 0, 0.8);
-    backdrop-filter: blur(3px); /* 輕微模糊效果 */
+    font-size: 0.7rem;
+color: var(--matrix-green);
+    
+    backdrop-filter: blur(3px); 
     display: flex;
-    flex-direction: column; /* 讓 producer 和 note 垂直堆疊 */
+    flex-direction: column; 
     gap: 5px;
     align-items: center;
     justify-content: center;
@@ -48,7 +52,7 @@
 
 .project-note {
     font-size: 0.6rem;
-    opacity: 0.6;
+    opacity: 0.6; /* 這裡只控制透明度，顏色會繼承父層的 --matrix-green */
     letter-spacing: 0.05em;
 }
 
@@ -216,14 +220,16 @@
         .fragment.size-3x1 { width: calc(3 * var(--grid-unit) + 2 * var(--gap)); height: var(--grid-unit); }
         .fragment.size-1x3 { width: var(--grid-unit); height: calc(3 * var(--grid-unit) + 2 * var(--gap)); }
 
-        /* Hover 效果 (增亮) */
-        .fragment:hover {
-            z-index: 10;
-            transform: translate(-50%, -50%) rotateZ(0deg) scale(1.08); 
-            box-shadow: 
-                0 0 20px var(--matrix-green); 
-            background-color: rgba(0, 50, 0, 0.95); 
-        }
+.fragment:hover {
+    z-index: 10;
+    transform: translate(-50%, -50%) rotateZ(0deg) scale(1.08); 
+    
+    /* 修正 1：替換硬編碼的陰影，改用動態光暈變數 */
+    box-shadow: 0 0 20px var(--matrix-green-glow); 
+    
+    /* 修正 2：替換硬編碼的綠色背景，改用動態的深色變數 */
+    background-color: var(--matrix-green-dark); 
+}
 
         /* 碎片內的中文別名 (居中標題) */
         .fragment span {
@@ -262,34 +268,41 @@
             opacity: 1;
         }
 
-        #poemModalContent {
-            position: absolute; 
-            background-color: rgba(0, 0, 0, 0.95); 
-            border: 1px solid rgba(0, 255, 0, 0.5); 
-            
-            box-shadow: 
-                0 0 80px rgba(0, 255, 0, 0.9), 
-                inset 0 0 15px rgba(0, 255, 0, 0.8); 
-            
-            padding: 25px; 
-            width: 400px; 
-            max-width: 90vw;
-            min-height: 200px; 
-            max-height: 80vh;
-            color: var(--modal-color);
-            
-            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); 
-            
-            font-size: 0.85rem; 
-            line-height: 1.6;
-            letter-spacing: 0.08em; 
-            overflow-y: auto; 
-            transform: translateZ(50px) rotateX(5deg); 
-            transform-style: preserve-3d;
-            animation: modal-pop-in 0.3s ease-out;
-            transform-origin: center center;
-            font-family: var(--code-font); 
-        }
+#poemModalContent {
+    position: absolute; 
+    background-color: rgba(0, 0, 0, 0.95); 
+    
+    /* 修正 1: 邊框顏色。使用主色變數 (確保會變色) */
+    border: 1px solid var(--matrix-green); 
+    
+    /* 修正 2 & 3: 光暈陰影顏色 (關鍵修正！) */
+    /* 直接使用 JS 確保更新的完整 RGBA 字串變數 --matrix-green-glow */
+    box-shadow: 
+        0 0 80px var(--matrix-green-glow), 
+        inset 0 0 15px var(--matrix-green-glow); 
+    
+    padding: 25px; 
+    width: 400px; 
+    max-width: 90vw;
+    min-height: 200px; 
+    max-height: 80vh;
+    
+    /* 文字顏色: 使用主色變數 */
+    color: var(--matrix-green);
+    
+    /* 修正 4: 文字陰影顏色 (使用 glow 變數) */
+    text-shadow: 0 0 5px var(--matrix-green-glow); 
+    
+    font-size: 0.85rem; 
+    line-height: 1.6;
+    letter-spacing: 0.08em; 
+    overflow-y: auto; 
+    transform: translateZ(50px) rotateX(5deg); 
+    transform-style: preserve-3d;
+    animation: modal-pop-in 0.3s ease-out;
+    transform-origin: center center;
+    font-family: var(--code-font); 
+}
         
         @keyframes modal-pop-in {
             0% { opacity: 0; transform: translateZ(50px) scale(0.7) rotateX(20deg); }
@@ -349,6 +362,40 @@
     </audio>
 
     <script>
+// [新增] 顏色主題定義
+        const colorPalettes = [
+            // Green (原色)
+            { main: '#00ff00', dark: '#008f11', glow: 'rgba(0, 255, 0, 0.6)' },
+            // Cyan/Blue (電子藍)
+            { main: '#00ffff', dark: '#008f8f', glow: 'rgba(0, 255, 255, 0.7)' },
+            // Red/Pink (危險紅)
+            { main: '#ff0066', dark: '#a00040', glow: 'rgba(255, 0, 102, 0.7)' },
+            // Yellow/Gold (警告黃)
+            { main: '#ffff00', dark: '#a0a000', glow: 'rgba(255, 255, 0, 0.7)' }
+        ];
+        let currentColorIndex = 0; // 追蹤當前顏色索引
+// [新增] 全域變數，追蹤當前 Canvas 顏色
+        let currentCanvasColor = '#00ff00';
+
+// [修改] changeColorTheme 函式
+        function changeColorTheme() {
+            currentColorIndex = (currentColorIndex + 1) % colorPalettes.length;
+            const newPalette = colorPalettes[currentColorIndex];
+            
+            const root = document.documentElement;
+            // 更新 CSS 變數 (供碎片和 Modal 使用)
+            root.style.setProperty('--matrix-green', newPalette.main);
+            root.style.setProperty('--matrix-green-dark', newPalette.dark);
+            root.style.setProperty('--matrix-green-glow', newPalette.glow);
+            
+            // Modal 顏色變數更新
+      const rgbValues = newPalette.main.slice(1).match(/.{2}/g).map(h => parseInt(h, 16)).join(', ');
+            root.style.setProperty('--modal-color-rgb', rgbValues);
+            
+
+            // ⭐️ 關鍵修改：同步更新 Canvas 繪圖用的全域變數
+            currentCanvasColor = newPalette.main; 
+        }
         // V28.0 核心：音樂與音效路徑設定
         const BACKGROUND_MUSIC_PATH = 'background_music.mp3'; 
         const RELOAD_SFX_PATH = 'reboot_sfx.mp3'; 
@@ -597,8 +644,8 @@
             fragments.forEach((frag, index) => {
                 setTimeout(() => {
                     frag.classList.remove('hidden'); 
-                /* V29.0 變更：交錯延遲時間從 40ms 減少到 15s */
-                }, index * 15); 
+                /* V29.0 變更：交錯延遲時間從 40ms 減少到 20s */
+                }, index * 20); 
             });
         }
         
@@ -645,6 +692,7 @@
         
         // 事件監聽器
         refreshButton.addEventListener('click', () => {
+changeColorTheme(); // 👈 新增：點擊時切換顏色
             renderFragments();
             playSfx(); 
         });
@@ -733,17 +781,21 @@
         window.addEventListener('resize', resizeCanvas);
         
 
+// [修改] drawMatrix 函式
         function drawMatrix() {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const fontSize = 16;
             
+            // ⭐️ 關鍵修改：直接使用全域變數 currentCanvasColor
+            ctx.fillStyle = currentCanvasColor; 
+
             for (let i = 0; i < streams.length; i++) {
                 const stream = streams[i];
                 const char = letters[Math.floor(Math.random() * letters.length)];
                 
-                ctx.fillStyle = varColorToRgba('--matrix-green');
+                // 使用 ctx.fillStyle，也就是當前主題色
                 ctx.font = `${fontSize}px "Microsoft JhengHei", "PingFang TC", "Arial Unicode MS", sans-serif`; 
 
                 ctx.fillText(char, stream.x, stream.y);
@@ -758,10 +810,37 @@
             requestAnimationFrame(drawMatrix);
         }
 
-        function varColorToRgba(varName) {
-            const color = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-            return `rgba(0, ${Math.floor(255 * (0.5 + Math.random() * 0.5))}, 0, 1)`; 
+// [修改] drawMatrix 函式
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const fontSize = 16;
+            
+            // 動態讀取當前主題色 (這就是實現變色的關鍵！)
+            const mainColor = getComputedStyle(document.documentElement).getPropertyValue('--matrix-green').trim();
+
+            for (let i = 0; i < streams.length; i++) {
+                const stream = streams[i];
+                const char = letters[Math.floor(Math.random() * letters.length)];
+                
+                // 使用動態顏色變數
+                ctx.fillStyle = mainColor; 
+                ctx.font = `${fontSize}px "Microsoft JhengHei", "PingFang TC", "Arial Unicode MS", sans-serif`; 
+
+                ctx.fillText(char, stream.x, stream.y);
+
+                stream.y += stream.speed * 16; 
+
+                if (stream.y > canvas.height && Math.random() > 0.98) {
+                    stream.y = 0;
+                    stream.speed = Math.random() * 5 + 1;
+                }
+            }
+            requestAnimationFrame(drawMatrix);
         }
+        
+
 
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
