@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
+
 /* ============== 底部製作人資訊欄 (V38.0 新增) ============== */
 #footer-credits {
     position: fixed; 
@@ -320,10 +321,25 @@
             border-top: 1px dashed rgba(0, 255, 0, 0.4);
             font-size: 0.75rem;
         }
+/* ====================== 最終嘗試：強制移除 Modal 內所有 div 標籤的虛線 ====================== */
 
+#poemModalContent div {
+    /* 使用最強規則，移除所有底部邊框樣式 */
+    border-bottom: 0 !important; 
+    border-style: none !important;
+    padding-bottom: 0 !important; /* 清除底部的填充，以防邊框看起來是間距 */
+    margin-bottom: 0 !important; /* 清除底部的外邊距 */
+}
+
+/* 為了保險起見，同時也移除 <p> 和 <hr> 的邊框 */
+#poemModalContent p, #poemModalContent hr {
+    border-bottom: 0 !important; 
+    border-style: none !important;
+}
     </style>
 </head>
 <body>
+<div id="sun-shafts"></div>
     <canvas id="matrixCanvas"></canvas>
 
     <div id="viewportWrapper">
